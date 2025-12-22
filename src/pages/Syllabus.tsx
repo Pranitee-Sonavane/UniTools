@@ -6,7 +6,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { ClipboardList, Loader2, Download, ChevronDown, ChevronRight, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { uploadFileToFirebase } from "@/lib/firebase-storage";
 
 interface Topic {
   id: string;
@@ -24,15 +23,13 @@ interface Unit {
 export default function Syllabus() {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [units, setUnits] = useState<Unit[]>([]);
   const [showChecklist, setShowChecklist] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const { toast } = useToast();
 
-  const handleExtract = async () => {
+  const handleExtract = () => {
     if (!file) return;
 
     if (validationError) {
@@ -44,42 +41,17 @@ export default function Syllabus() {
       return;
     }
 
-    setIsUploading(true);
-    setUploadProgress(0);
+    setIsProcessing(true);
 
-    try {
-      // Upload file to Firebase Storage
-      await uploadFileToFirebase(
-        file,
-        "syllabi",
-        (progress) => setUploadProgress(progress)
-      );
-
-      setIsUploading(false);
-      setIsProcessing(true);
-
-      // Simulate extraction processing
-      // In production, this would call a backend API to extract syllabus content
-      setTimeout(() => {
-        setIsProcessing(false);
-        // Show empty state - ready to connect to backend
-        setShowChecklist(true);
-        toast({
-          title: "File Uploaded",
-          description: "Your syllabus has been uploaded. Connect a backend to extract topics.",
-        });
-      }, 1500);
-
-    } catch (error: unknown) {
-      setIsUploading(false);
+    // Simulate processing - ready for backend integration
+    setTimeout(() => {
       setIsProcessing(false);
-      const message = error instanceof Error ? error.message : "Failed to upload file. Please try again.";
+      setShowChecklist(true);
       toast({
-        title: "Upload Failed",
-        description: message,
-        variant: "destructive",
+        title: "Ready for Processing",
+        description: "Connect a backend to extract syllabus topics.",
       });
-    }
+    }, 1500);
   };
 
   const toggleUnit = (unitId: string) => {
@@ -108,14 +80,13 @@ export default function Syllabus() {
   );
   const progressPercent = totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0;
 
-  const isSubmitDisabled = !file || isProcessing || isUploading || !!validationError;
+  const isSubmitDisabled = !file || isProcessing || !!validationError;
 
   const resetForm = () => {
     setFile(null);
     setShowChecklist(false);
     setUnits([]);
     setValidationError(null);
-    setUploadProgress(0);
   };
 
   return (
@@ -144,17 +115,6 @@ export default function Syllabus() {
                 />
               </div>
 
-              {/* Upload Progress */}
-              {isUploading && (
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">Uploading...</span>
-                    <span className="text-sm text-muted-foreground">{Math.round(uploadProgress)}%</span>
-                  </div>
-                  <Progress value={uploadProgress} className="h-2" />
-                </div>
-              )}
-
               {/* Action Button */}
               <div className="text-center">
                 <Button
@@ -164,12 +124,7 @@ export default function Syllabus() {
                   disabled={isSubmitDisabled}
                   className="min-w-[200px]"
                 >
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : isProcessing ? (
+                  {isProcessing ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       Extracting...
@@ -247,12 +202,12 @@ export default function Syllabus() {
                 /* Empty State - Ready for backend connection */
                 <div className="text-center p-8 bg-card rounded-xl border border-border">
                   <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">File Uploaded Successfully</h3>
+                  <h3 className="text-lg font-medium text-foreground mb-2">File Selected</h3>
                   <p className="text-muted-foreground mb-6">
-                    Your syllabus has been uploaded. Connect a backend service to extract and display topics from the PDF.
+                    Your syllabus file is ready. Connect a backend service to extract and display topics from the PDF.
                   </p>
                   <Button variant="outline" onClick={resetForm}>
-                    Upload Another File
+                    Select Another File
                   </Button>
                 </div>
               )}
