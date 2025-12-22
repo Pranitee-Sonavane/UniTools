@@ -1,9 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, Menu, X, Moon, Sun, LogIn, LogOut, User } from "lucide-react";
+import { GraduationCap, Menu, X, Moon, Sun } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "@/hooks/use-theme";
-import { useAuth } from "@/hooks/use-auth";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -19,7 +18,6 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
-  const { user, signOut } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -56,31 +54,6 @@ export function Navbar() {
                 <Sun className="h-5 w-5" />
               )}
             </Button>
-            
-            {user ? (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground flex items-center gap-1">
-                  <User className="h-4 w-4" />
-                  {user.email?.split("@")[0]}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={signOut}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <LogOut className="h-4 w-4 mr-1" />
-                  Sign Out
-                </Button>
-              </div>
-            ) : (
-              <Link to="/auth">
-                <Button variant="secondary" size="sm">
-                  <LogIn className="h-4 w-4 mr-1" />
-                  Sign In
-                </Button>
-              </Link>
-            )}
           </div>
         </div>
 
@@ -126,35 +99,6 @@ export function Navbar() {
                 </Button>
               </Link>
             ))}
-            
-            <div className="pt-2 mt-2 border-t border-border">
-              {user ? (
-                <div className="flex flex-col gap-2">
-                  <span className="text-sm text-muted-foreground flex items-center gap-1 px-4 py-2">
-                    <User className="h-4 w-4" />
-                    {user.email}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      signOut();
-                      setIsOpen(false);
-                    }}
-                    className="w-full justify-start text-destructive hover:text-destructive"
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sign Out
-                  </Button>
-                </div>
-              ) : (
-                <Link to="/auth" onClick={() => setIsOpen(false)}>
-                  <Button variant="secondary" className="w-full justify-start">
-                    <LogIn className="h-4 w-4 mr-2" />
-                    Sign In
-                  </Button>
-                </Link>
-              )}
-            </div>
           </div>
         </div>
       )}
