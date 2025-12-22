@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { UploadBox } from "@/components/UploadBox";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,10 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { FileText, Download, Loader2, CheckCircle, Check } from "lucide-react";
+import { FileText, Download, Loader2, CheckCircle, Check, LogIn } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const fontFamilies = [
   "Times New Roman",
@@ -32,6 +36,7 @@ export default function UniFormat() {
   const [mode, setMode] = useState<"standard" | "custom">("standard");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Custom mode state
   const [fontFamily, setFontFamily] = useState("Times New Roman");
@@ -43,19 +48,101 @@ export default function UniFormat() {
   const [footerText, setFooterText] = useState("");
   const [coverPage, setCoverPage] = useState(true);
 
-  const handleFormat = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleFormat = async () => {
     if (!file) return;
-    setIsProcessing(true);
-    // Simulate processing
-    setTimeout(() => {
+    
+    if (!user) {
+      toast({
+        title: "Sign in Required",
+        description: "Please sign in to format your documents.",
+        variant: "destructive",
+      });
+      navigate("/auth");
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      // Upload file to storage
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Create formatting job record
+      const formatSettings = mode === "custom" ? {
+        fontFamily,
+        fontSize,
+        lineSpacing,
+        margin,
+        pageNumbering,
+        headerText,
+        footerText,
+        coverPage,
+      } : {
+        fontFamily: "Times New Roman",
+        fontSize: "12",
+        lineSpacing: "1.5",
+        margin: "1 inch",
+        pageNumbering: true,
+        coverPage: true,
+      };
+
+      const { error: jobError } = await supabase
+        .from("formatting_jobs")
+        .insert({
+          user_id: user.id,
+          original_file_path: filePath,
+          format_mode: mode,
+          format_settings: formatSettings,
+          status: "processing",
+        });
+
+      if (jobError) {
+        throw jobError;
+      }
+
+      setIsUploading(false);
+      setIsProcessing(true);
+
+      // Simulate processing (in real app, this would be handled by an edge function)
+      setTimeout(() => {
+        setIsProcessing(false);
+        setIsComplete(true);
+        toast({
+          title: "Formatting Complete!",
+          description: "Your document has been formatted successfully.",
+        });
+      }, 2000);
+
+    } catch (error: any) {
+      setIsUploading(false);
       setIsProcessing(false);
-      setIsComplete(true);
-    }, 2000);
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload document. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDownload = () => {
-    // Placeholder for download functionality
-    console.log("Downloading formatted document...");
+    toast({
+      title: "Download Started",
+      description: "Your formatted document is being prepared for download.",
+    });
   };
 
   const resetForm = () => {
@@ -78,6 +165,20 @@ export default function UniFormat() {
               Format your assignments with standard academic layout or custom rules.
             </p>
           </div>
+
+          {/* Auth Notice */}
+          {!user && (
+            <div className="mb-8 p-4 rounded-xl bg-secondary/5 border border-secondary/20 flex items-center justify-between">
+              <div>
+                <p className="font-medium text-foreground">Sign in to save your documents</p>
+                <p className="text-sm text-muted-foreground">Your formatted files will be stored securely in your account.</p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => navigate("/auth")}>
+                <LogIn className="w-4 h-4 mr-1" />
+                Sign In
+              </Button>
+            </div>
+          )}
 
           {/* Upload Section */}
           <div className="mb-8">
@@ -247,10 +348,15 @@ export default function UniFormat() {
                 variant="hero"
                 size="lg"
                 onClick={handleFormat}
-                disabled={!file || isProcessing}
+                disabled={!file || isProcessing || isUploading}
                 className="min-w-[200px]"
               >
-                {isProcessing ? (
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : isProcessing ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Processing...

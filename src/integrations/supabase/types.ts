@@ -14,7 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      formatting_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          format_mode: string
+          format_settings: Json | null
+          formatted_file_path: string | null
+          id: string
+          original_file_path: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          format_mode?: string
+          format_settings?: Json | null
+          formatted_file_path?: string | null
+          id?: string
+          original_file_path: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          format_mode?: string
+          format_settings?: Json | null
+          formatted_file_path?: string | null
+          id?: string
+          original_file_path?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
