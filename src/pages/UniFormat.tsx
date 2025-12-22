@@ -15,8 +15,6 @@ import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { FileText, Download, Loader2, CheckCircle, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { uploadFileToFirebase } from "@/lib/firebase-storage";
-import { Progress } from "@/components/ui/progress";
 
 const fontFamilies = [
   "Times New Roman",
@@ -35,10 +33,7 @@ export default function UniFormat() {
   const [mode, setMode] = useState<"standard" | "custom">("standard");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
   // Custom mode state
   const [fontFamily, setFontFamily] = useState("Times New Roman");
@@ -52,7 +47,7 @@ export default function UniFormat() {
 
   const { toast } = useToast();
 
-  const handleFormat = async () => {
+  const handleFormat = () => {
     if (!file) return;
 
     if (validationError) {
@@ -64,64 +59,34 @@ export default function UniFormat() {
       return;
     }
 
-    setIsUploading(true);
-    setUploadProgress(0);
+    setIsProcessing(true);
 
-    try {
-      // Upload file to Firebase Storage
-      const result = await uploadFileToFirebase(
-        file,
-        "documents",
-        (progress) => setUploadProgress(progress)
-      );
-
-      setDownloadUrl(result.downloadUrl);
-      setIsUploading(false);
-      setIsProcessing(true);
-
-      // Simulate processing (in a real app, this would call a backend service)
-      setTimeout(() => {
-        setIsProcessing(false);
-        setIsComplete(true);
-        toast({
-          title: "Formatting Complete!",
-          description: "Your document has been formatted successfully.",
-        });
-      }, 2000);
-
-    } catch (error: unknown) {
-      setIsUploading(false);
+    // Simulate processing - ready for backend integration
+    setTimeout(() => {
       setIsProcessing(false);
-      const message = error instanceof Error ? error.message : "Failed to upload document. Please try again.";
+      setIsComplete(true);
       toast({
-        title: "Upload Failed",
-        description: message,
-        variant: "destructive",
+        title: "Ready for Processing",
+        description: "Connect a backend to format your document.",
       });
-    }
+    }, 1500);
   };
 
   const handleDownload = () => {
-    if (downloadUrl) {
-      window.open(downloadUrl, "_blank");
-    } else {
-      toast({
-        title: "Download Started",
-        description: "Your formatted document is being prepared for download.",
-      });
-    }
+    toast({
+      title: "Backend Required",
+      description: "Connect a backend service to enable document downloads.",
+    });
   };
 
   const resetForm = () => {
     setFile(null);
     setIsComplete(false);
     setIsProcessing(false);
-    setUploadProgress(0);
-    setDownloadUrl(null);
     setValidationError(null);
   };
 
-  const isSubmitDisabled = !file || isProcessing || isUploading || !!validationError;
+  const isSubmitDisabled = !file || isProcessing || !!validationError;
 
   return (
     <Layout>
@@ -303,17 +268,6 @@ export default function UniFormat() {
             </div>
           )}
 
-          {/* Upload Progress */}
-          {isUploading && (
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">Uploading...</span>
-                <span className="text-sm text-muted-foreground">{Math.round(uploadProgress)}%</span>
-              </div>
-              <Progress value={uploadProgress} className="h-2" />
-            </div>
-          )}
-
           {/* Action Section */}
           <div className="flex flex-col items-center gap-4">
             {!isComplete ? (
@@ -324,12 +278,7 @@ export default function UniFormat() {
                 disabled={isSubmitDisabled}
                 className="min-w-[200px]"
               >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Uploading...
-                  </>
-                ) : isProcessing ? (
+                {isProcessing ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Processing...

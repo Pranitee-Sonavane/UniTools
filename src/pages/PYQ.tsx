@@ -2,10 +2,8 @@ import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { UploadBox } from "@/components/UploadBox";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { BookOpen, Loader2, Download, ChevronDown, ChevronRight, FileText, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { uploadFileToFirebase } from "@/lib/firebase-storage";
 
 interface Question {
   id: string;
@@ -24,15 +22,13 @@ interface Topic {
 export default function PYQ() {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const { toast } = useToast();
 
-  const handleOrganize = async () => {
+  const handleOrganize = () => {
     if (!file) return;
 
     if (validationError) {
@@ -44,42 +40,17 @@ export default function PYQ() {
       return;
     }
 
-    setIsUploading(true);
-    setUploadProgress(0);
+    setIsProcessing(true);
 
-    try {
-      // Upload file to Firebase Storage
-      await uploadFileToFirebase(
-        file,
-        "pyqs",
-        (progress) => setUploadProgress(progress)
-      );
-
-      setIsUploading(false);
-      setIsProcessing(true);
-
-      // Simulate processing
-      // In production, this would call a backend API to organize questions
-      setTimeout(() => {
-        setIsProcessing(false);
-        // Show empty state - ready to connect to backend
-        setShowResults(true);
-        toast({
-          title: "File Uploaded",
-          description: "Your PYQ file has been uploaded. Connect a backend to organize questions.",
-        });
-      }, 1500);
-
-    } catch (error: unknown) {
-      setIsUploading(false);
+    // Simulate processing - ready for backend integration
+    setTimeout(() => {
       setIsProcessing(false);
-      const message = error instanceof Error ? error.message : "Failed to upload file. Please try again.";
+      setShowResults(true);
       toast({
-        title: "Upload Failed",
-        description: message,
-        variant: "destructive",
+        title: "Ready for Processing",
+        description: "Connect a backend to organize PYQ questions.",
       });
-    }
+    }, 1500);
   };
 
   const toggleTopic = (topicId: string) => {
@@ -90,14 +61,13 @@ export default function PYQ() {
 
   const totalQuestions = topics.reduce((sum, topic) => sum + topic.questions.length, 0);
 
-  const isSubmitDisabled = !file || isProcessing || isUploading || !!validationError;
+  const isSubmitDisabled = !file || isProcessing || !!validationError;
 
   const resetForm = () => {
     setFile(null);
     setShowResults(false);
     setTopics([]);
     setValidationError(null);
-    setUploadProgress(0);
   };
 
   return (
@@ -126,17 +96,6 @@ export default function PYQ() {
                 />
               </div>
 
-              {/* Upload Progress */}
-              {isUploading && (
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">Uploading...</span>
-                    <span className="text-sm text-muted-foreground">{Math.round(uploadProgress)}%</span>
-                  </div>
-                  <Progress value={uploadProgress} className="h-2" />
-                </div>
-              )}
-
               {/* Action Button */}
               <div className="text-center">
                 <Button
@@ -146,12 +105,7 @@ export default function PYQ() {
                   disabled={isSubmitDisabled}
                   className="min-w-[200px]"
                 >
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : isProcessing ? (
+                  {isProcessing ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       Organizing...
@@ -234,12 +188,12 @@ export default function PYQ() {
                 /* Empty State - Ready for backend connection */
                 <div className="text-center p-8 bg-card rounded-xl border border-border">
                   <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">File Uploaded Successfully</h3>
+                  <h3 className="text-lg font-medium text-foreground mb-2">File Selected</h3>
                   <p className="text-muted-foreground mb-6">
-                    Your PYQ file has been uploaded. Connect a backend service to organize and display questions by topic.
+                    Your PYQ file is ready. Connect a backend service to organize and display questions by topic.
                   </p>
                   <Button variant="outline" onClick={resetForm}>
-                    Upload Another File
+                    Select Another File
                   </Button>
                 </div>
               )}
