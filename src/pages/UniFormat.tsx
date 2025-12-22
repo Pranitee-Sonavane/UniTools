@@ -13,24 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { FileText, Download, Loader2, CheckCircle } from "lucide-react";
-
-const universities = [
-  "University of Delhi",
-  "Mumbai University",
-  "Anna University",
-  "Jawaharlal Nehru University",
-  "Other",
-];
-
-const assignmentTypes = [
-  "Research Paper",
-  "Lab Report",
-  "Essay",
-  "Case Study",
-  "Thesis",
-  "Project Report",
-];
+import { FileText, Download, Loader2, CheckCircle, Check } from "lucide-react";
 
 const fontFamilies = [
   "Times New Roman",
@@ -42,17 +25,13 @@ const fontFamilies = [
 
 const fontSizes = ["10", "11", "12", "14"];
 const lineSpacings = ["1.0", "1.15", "1.5", "2.0"];
-const margins = ["1 inch", "1.25 inch", "1.5 inch", "0.75 inch"];
+const margins = ["0.75 inch", "1 inch", "1.25 inch", "1.5 inch"];
 
 export default function UniFormat() {
   const [file, setFile] = useState<File | null>(null);
-  const [mode, setMode] = useState<"preset" | "custom">("preset");
+  const [mode, setMode] = useState<"standard" | "custom">("standard");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-
-  // Preset mode state
-  const [university, setUniversity] = useState("");
-  const [assignmentType, setAssignmentType] = useState("");
 
   // Custom mode state
   const [fontFamily, setFontFamily] = useState("Times New Roman");
@@ -96,7 +75,7 @@ export default function UniFormat() {
             </div>
             <h1 className="text-3xl font-bold text-primary mb-3">UniFormat</h1>
             <p className="text-muted-foreground">
-              Automatically format assignments using university presets or custom rules.
+              Format your assignments with standard academic layout or custom rules.
             </p>
           </div>
 
@@ -111,57 +90,49 @@ export default function UniFormat() {
             <Label className="text-base font-medium mb-3 block">Formatting Mode</Label>
             <RadioGroup
               value={mode}
-              onValueChange={(value) => setMode(value as "preset" | "custom")}
-              className="flex gap-4"
+              onValueChange={(value) => setMode(value as "standard" | "custom")}
+              className="flex flex-col gap-3"
             >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="preset" id="preset" />
-                <Label htmlFor="preset" className="cursor-pointer">Use University Preset</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="custom" id="custom" />
-                <Label htmlFor="custom" className="cursor-pointer">Custom Formatting</Label>
-              </div>
+              <label 
+                htmlFor="standard" 
+                className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+                  mode === "standard" 
+                    ? "border-secondary bg-secondary/5" 
+                    : "border-border bg-background hover:border-secondary/50"
+                }`}
+              >
+                <RadioGroupItem value="standard" id="standard" className="mt-0.5" />
+                <div className="flex-1">
+                  <div className="font-medium text-foreground">Standard Academic Format</div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Times New Roman, 12pt, 1.5 spacing, 1-inch margins, page numbers, cover page
+                  </p>
+                </div>
+                {mode === "standard" && (
+                  <Check className="w-5 h-5 text-secondary mt-0.5" />
+                )}
+              </label>
+              <label 
+                htmlFor="custom" 
+                className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+                  mode === "custom" 
+                    ? "border-secondary bg-secondary/5" 
+                    : "border-border bg-background hover:border-secondary/50"
+                }`}
+              >
+                <RadioGroupItem value="custom" id="custom" className="mt-0.5" />
+                <div className="flex-1">
+                  <div className="font-medium text-foreground">Custom Formatting</div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Define your own formatting rules for font, size, spacing, and more
+                  </p>
+                </div>
+                {mode === "custom" && (
+                  <Check className="w-5 h-5 text-secondary mt-0.5" />
+                )}
+              </label>
             </RadioGroup>
           </div>
-
-          {/* Preset Mode Options */}
-          {mode === "preset" && (
-            <div className="space-y-6 mb-8 p-6 bg-muted/30 rounded-xl border border-border">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label className="mb-2 block">University</Label>
-                  <Select value={university} onValueChange={setUniversity}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select university" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {universities.map((uni) => (
-                        <SelectItem key={uni} value={uni}>
-                          {uni}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="mb-2 block">Assignment Type</Label>
-                  <Select value={assignmentType} onValueChange={setAssignmentType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {assignmentTypes.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Custom Mode Options */}
           {mode === "custom" && (
@@ -255,7 +226,7 @@ export default function UniFormat() {
                     checked={pageNumbering}
                     onCheckedChange={setPageNumbering}
                   />
-                  <Label htmlFor="page-numbering" className="cursor-pointer">Page Numbering</Label>
+                  <Label htmlFor="page-numbering" className="cursor-pointer">Page Numbering (bottom center)</Label>
                 </div>
                 <div className="flex items-center gap-3">
                   <Switch 
