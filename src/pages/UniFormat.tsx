@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { UploadBox } from "@/components/UploadBox";
 import { Button } from "@/components/ui/button";
@@ -14,10 +13,10 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { FileText, Download, Loader2, CheckCircle, Check, LogIn } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { supabase } from "@/integrations/supabase/client";
+import { FileText, Download, Loader2, CheckCircle, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { uploadFileToFirebase } from "@/lib/firebase-storage";
+import { Progress } from "@/components/ui/progress";
 
 const fontFamilies = [
   "Times New Roman",
@@ -37,6 +36,9 @@ export default function UniFormat() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
   // Custom mode state
   const [fontFamily, setFontFamily] = useState("Times New Roman");
@@ -48,76 +50,36 @@ export default function UniFormat() {
   const [footerText, setFooterText] = useState("");
   const [coverPage, setCoverPage] = useState(true);
 
-  const { user } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleFormat = async () => {
     if (!file) return;
-    
-    if (!user) {
+
+    if (validationError) {
       toast({
-        title: "Sign in Required",
-        description: "Please sign in to format your documents.",
+        title: "Invalid File",
+        description: validationError,
         variant: "destructive",
       });
-      navigate("/auth");
       return;
     }
 
     setIsUploading(true);
+    setUploadProgress(0);
 
     try {
-      // Upload file to storage
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
+      // Upload file to Firebase Storage
+      const result = await uploadFileToFirebase(
+        file,
+        "documents",
+        (progress) => setUploadProgress(progress)
+      );
 
-      const { error: uploadError } = await supabase.storage
-        .from("documents")
-        .upload(filePath, file);
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Create formatting job record
-      const formatSettings = mode === "custom" ? {
-        fontFamily,
-        fontSize,
-        lineSpacing,
-        margin,
-        pageNumbering,
-        headerText,
-        footerText,
-        coverPage,
-      } : {
-        fontFamily: "Times New Roman",
-        fontSize: "12",
-        lineSpacing: "1.5",
-        margin: "1 inch",
-        pageNumbering: true,
-        coverPage: true,
-      };
-
-      const { error: jobError } = await supabase
-        .from("formatting_jobs")
-        .insert({
-          user_id: user.id,
-          original_file_path: filePath,
-          format_mode: mode,
-          format_settings: formatSettings,
-          status: "processing",
-        });
-
-      if (jobError) {
-        throw jobError;
-      }
-
+      setDownloadUrl(result.downloadUrl);
       setIsUploading(false);
       setIsProcessing(true);
 
-      // Simulate processing (in real app, this would be handled by an edge function)
+      // Simulate processing (in a real app, this would call a backend service)
       setTimeout(() => {
         setIsProcessing(false);
         setIsComplete(true);
@@ -127,29 +89,39 @@ export default function UniFormat() {
         });
       }, 2000);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       setIsUploading(false);
       setIsProcessing(false);
+      const message = error instanceof Error ? error.message : "Failed to upload document. Please try again.";
       toast({
         title: "Upload Failed",
-        description: error.message || "Failed to upload document. Please try again.",
+        description: message,
         variant: "destructive",
       });
     }
   };
 
   const handleDownload = () => {
-    toast({
-      title: "Download Started",
-      description: "Your formatted document is being prepared for download.",
-    });
+    if (downloadUrl) {
+      window.open(downloadUrl, "_blank");
+    } else {
+      toast({
+        title: "Download Started",
+        description: "Your formatted document is being prepared for download.",
+      });
+    }
   };
 
   const resetForm = () => {
     setFile(null);
     setIsComplete(false);
     setIsProcessing(false);
+    setUploadProgress(0);
+    setDownloadUrl(null);
+    setValidationError(null);
   };
+
+  const isSubmitDisabled = !file || isProcessing || isUploading || !!validationError;
 
   return (
     <Layout>
@@ -166,24 +138,14 @@ export default function UniFormat() {
             </p>
           </div>
 
-          {/* Auth Notice */}
-          {!user && (
-            <div className="mb-8 p-4 rounded-xl bg-secondary/5 border border-secondary/20 flex items-center justify-between">
-              <div>
-                <p className="font-medium text-foreground">Sign in to save your documents</p>
-                <p className="text-sm text-muted-foreground">Your formatted files will be stored securely in your account.</p>
-              </div>
-              <Button variant="secondary" size="sm" onClick={() => navigate("/auth")}>
-                <LogIn className="w-4 h-4 mr-1" />
-                Sign In
-              </Button>
-            </div>
-          )}
-
           {/* Upload Section */}
           <div className="mb-8">
             <Label className="text-base font-medium mb-3 block">Upload Your Document</Label>
-            <UploadBox onFileSelect={setFile} />
+            <UploadBox 
+              validationType="uniformal"
+              onFileSelect={setFile} 
+              onValidationError={setValidationError}
+            />
           </div>
 
           {/* Mode Selection */}
@@ -341,6 +303,17 @@ export default function UniFormat() {
             </div>
           )}
 
+          {/* Upload Progress */}
+          {isUploading && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-muted-foreground">Uploading...</span>
+                <span className="text-sm text-muted-foreground">{Math.round(uploadProgress)}%</span>
+              </div>
+              <Progress value={uploadProgress} className="h-2" />
+            </div>
+          )}
+
           {/* Action Section */}
           <div className="flex flex-col items-center gap-4">
             {!isComplete ? (
@@ -348,7 +321,7 @@ export default function UniFormat() {
                 variant="hero"
                 size="lg"
                 onClick={handleFormat}
-                disabled={!file || isProcessing || isUploading}
+                disabled={isSubmitDisabled}
                 className="min-w-[200px]"
               >
                 {isUploading ? (
