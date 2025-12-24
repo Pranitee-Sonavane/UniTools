@@ -216,70 +216,88 @@ export default function UniFormat() {
             </Button>
           </div>
 
-          {/* Custom Options */}
-          {mode === "custom" && (
-            <div className="mb-8 space-y-4 border p-4 rounded-md bg-muted/10">
-              <div>
-                <Label>Font Family</Label>
-                <select
-                  value={fontFamily}
-                  onChange={(e) => setFontFamily(e.target.value)}
-                  className="w-full p-2 border rounded-md mb-2"
-                >
-                  {commonFonts.map((font) => (
-                    <option key={font} value={font}>
-                      {font}
-                    </option>
-                  ))}
-                </select>
-                {fontFamily === "Other" && (
-                  <input
-                    type="text"
-                    value={customFont}
-                    onChange={(e) => setCustomFont(e.target.value)}
-                    placeholder="Enter font name"
-                    className="w-full p-2 border rounded-md"
-                  />
-                )}
-              </div>
+          <div className="mb-8 space-y-4 border p-4 rounded-md bg-muted/10 dark:bg-muted/80">
+  {/* Font Family */}
+  <div>
+    <Label>Font Family</Label>
+    <select
+      value={fontFamily}
+      onChange={(e) => setFontFamily(e.target.value)}
+      className="w-full p-2 border rounded-md mb-2
+                 bg-white text-black
+                 dark:bg-muted dark:text-white dark:border-gray-600"
+    >
+      {commonFonts.map((font) => (
+        <option
+          key={font}
+          value={font}
+          className="bg-white text-black dark:bg-muted dark:text-white"
+        >
+          {font}
+        </option>
+      ))}
+    </select>
+    {fontFamily === "Other" && (
+      <input
+        type="text"
+        value={customFont}
+        onChange={(e) => setCustomFont(e.target.value)}
+        placeholder="Enter font name"
+        className="w-full p-2 border rounded-md
+                   bg-white text-black
+                   dark:bg-muted dark:text-white dark:border-gray-600"
+      />
+    )}
+  </div>
 
-              <div>
-                <Label>Font Size (pt)</Label>
-                <input
-                  type="number"
-                  value={parseInt(fontSize) / 2}
-                  onChange={(e) => setFontSize((parseInt(e.target.value) * 2).toString())}
-                  className="w-full p-2 border rounded-md"
-                />
-              </div>
-              <div>
-                <Label>Line Spacing (1=240, 1.5=360, 2=480)</Label>
-                <input
-                  type="number"
-                  value={parseInt(lineSpacing) / 240}
-                  onChange={(e) => setLineSpacing((parseInt(e.target.value) * 240).toString())}
-                  className="w-full p-2 border rounded-md"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={justify}
-                  onChange={(e) => setJustify(e.target.checked)}
-                />
-                <Label>Justify Text</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={pageNumbers}
-                  onChange={(e) => setPageNumbers(e.target.checked)}
-                />
-                <Label>Include Page Numbers</Label>
-              </div>
-            </div>
-          )}
+  {/* Font Size */}
+  <div>
+    <Label>Font Size (pt)</Label>
+    <input
+      type="number"
+      value={parseInt(fontSize) / 2}
+      onChange={(e) => setFontSize((parseInt(e.target.value) * 2).toString())}
+      className="w-full p-2 border rounded-md
+                 bg-white text-black
+                 dark:bg-muted dark:text-white dark:border-gray-600"
+    />
+  </div>
 
+  {/* Line Spacing */}
+  <div>
+    <Label>Line Spacing (1=240, 1.5=360, 2=480)</Label>
+    <input
+      type="number"
+      value={parseInt(lineSpacing) / 240}
+      onChange={(e) => setLineSpacing((parseInt(e.target.value) * 240).toString())}
+      className="w-full p-2 border rounded-md
+                 bg-white text-black
+                 dark:bg-muted dark:text-white dark:border-gray-600"
+    />
+  </div>
+
+  {/* Justify */}
+  <div className="flex items-center gap-2">
+    <input
+      type="checkbox"
+      checked={justify}
+      onChange={(e) => setJustify(e.target.checked)}
+      className="accent-primary dark:accent-secondary"
+    />
+    <Label>Justify Text</Label>
+  </div>
+
+  {/* Page Numbers */}
+  <div className="flex items-center gap-2">
+    <input
+      type="checkbox"
+      checked={pageNumbers}
+      onChange={(e) => setPageNumbers(e.target.checked)}
+      className="accent-primary dark:accent-secondary"
+    />
+    <Label>Include Page Numbers</Label>
+  </div>
+</div>
           {/* ACTION */}
           <div className="flex flex-col items-center gap-4">
             {!isComplete ? (
