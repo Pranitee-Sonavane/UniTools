@@ -3,114 +3,173 @@ import { Layout } from "@/components/layout/Layout";
 import { UploadBox } from "@/components/UploadBox";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { FileText, Download, Loader2, CheckCircle, Check } from "lucide-react";
+import { FileText, Loader2, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const fontFamilies = [
-  "Times New Roman",
-  "Arial",
-  "Calibri",
-  "Georgia",
-  "Cambria",
-];
-
-const fontSizes = ["10", "11", "12", "14"];
-const lineSpacings = ["1.0", "1.15", "1.5", "2.0"];
-const margins = ["0.75 inch", "1 inch", "1.25 inch", "1.5 inch"];
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  AlignmentType,
+  Footer,
+  PageNumber,
+} from "docx";
+import { saveAs } from "file-saver";
+import mammoth from "mammoth";
 
 export default function UniFormat() {
+  const defaultFont = "Times New Roman";
+  const defaultFontSize = "24"; // Word units (12pt = 24)
+  const defaultLineSpacing = "360"; // 1.5 spacing
+  const defaultJustify = true;
+  const defaultPageNumbers = true;
+
   const [file, setFile] = useState<File | null>(null);
+  const [uploadKey, setUploadKey] = useState<number>(Date.now()); // reset UploadBox
   const [mode, setMode] = useState<"standard" | "custom">("standard");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Custom mode state
-  const [fontFamily, setFontFamily] = useState("Times New Roman");
-  const [fontSize, setFontSize] = useState("12");
-  const [lineSpacing, setLineSpacing] = useState("1.5");
-  const [margin, setMargin] = useState("1 inch");
-  const [pageNumbering, setPageNumbering] = useState(true);
-  const [headerText, setHeaderText] = useState("");
-  const [footerText, setFooterText] = useState("");
-  const [coverPage, setCoverPage] = useState(true);
+  // Custom options
+  const [fontFamily, setFontFamily] = useState(defaultFont);
+  const [customFont, setCustomFont] = useState(""); // for manual input
+  const [fontSize, setFontSize] = useState(defaultFontSize);
+  const [lineSpacing, setLineSpacing] = useState(defaultLineSpacing);
+  const [justify, setJustify] = useState(defaultJustify);
+  const [pageNumbers, setPageNumbers] = useState(defaultPageNumbers);
+
+  const [previewContent, setPreviewContent] = useState<string>("");
+  const [formattedDoc, setFormattedDoc] = useState<Document | null>(null);
 
   const { toast } = useToast();
 
-  const handleFormat = () => {
-    if (!file) return;
+  const commonFonts = [
+    "Times New Roman",
+    "Arial",
+    "Calibri",
+    "Georgia",
+    "Verdana",
+    "Tahoma",
+    "Courier New",
+    "Other",
+  ];
 
-    if (validationError) {
-      toast({
-        title: "Invalid File",
-        description: validationError,
-        variant: "destructive",
-      });
-      return;
-    }
+  // Format file
+  const handleFormat = async () => {
+    if (!file || validationError) return;
 
     setIsProcessing(true);
 
-    // Simulate processing - ready for backend integration
-    setTimeout(() => {
-      // Create a temporary formatted file (simulated)
-      const content = `UNI-FORMATTED DOCUMENT\n\nOriginal Filename: ${file.name}\nFormatting Mode: ${mode}\nDate: ${new Date().toLocaleString()}\n\n[This is a simulated formatted output. In a real application, the file content would be processed here.]`;
-      const blob = new Blob([content], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
-      setDownloadUrl(url);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const { value: text } = await mammoth.extractRawText({ arrayBuffer });
 
-      setIsProcessing(false);
+      const lines = text.split("\n").filter((l) => l.trim() !== "");
+
+      const children: Paragraph[] = [];
+
+      lines.forEach((line) => {
+        const trimmedLine = line.trim();
+
+        // Determine font to use
+        let appliedFont = fontFamily === "Other" && customFont ? customFont : fontFamily;
+
+        // Detect heading (all caps OR starts with 'Heading')
+        const isHeading =
+          trimmedLine === trimmedLine.toUpperCase() || trimmedLine.startsWith("Heading");
+
+        // Insert empty line before heading or new paragraph
+        if (children.length > 0) {
+          children.push(new Paragraph(""));
+        }
+
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: trimmedLine,
+                font: appliedFont,
+                size: parseInt(fontSize),
+                bold: isHeading,
+              }),
+            ],
+            spacing: { line: parseInt(lineSpacing) },
+            alignment: justify ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
+          })
+        );
+      });
+
+      const sections: any = [
+        {
+          properties: {},
+          children,
+        },
+      ];
+
+      // Add page numbers if enabled
+      if ((mode === "standard" && defaultPageNumbers) || (mode === "custom" && pageNumbers)) {
+        sections[0].footers = {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                children: [new TextRun({ children: [PageNumber.CURRENT] })],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+          }),
+        };
+      }
+
+      const doc = new Document({ sections });
+      setFormattedDoc(doc);
+
+      // Preview (minimal)
+      const previewLines = lines.join("\n");
+      setPreviewContent(previewLines);
+
       setIsComplete(true);
       toast({
         title: "Formatting Complete",
-        description: "Your document has been formatted and is ready for download.",
+        description: "Preview available. Download to save formatted file.",
       });
-    }, 1500);
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to process the Word document.",
+      });
+    }
+
+    setIsProcessing(false);
   };
 
-  const handleDownload = () => {
-    if (!downloadUrl || !file) return;
-
-    // Trigger download
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = `formatted_${file.name.split('.')[0]}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    // Cleanup (Delete temporary file)
-    URL.revokeObjectURL(downloadUrl);
-    setDownloadUrl(null);
-    setFile(null);
-    setIsComplete(false);
-    
-    toast({
-      title: "Downloaded & Cleared",
-      description: "File downloaded. All temporary data has been deleted.",
-    });
+  const downloadFormattedFile = async () => {
+    if (!formattedDoc || !file) return;
+    const blob = await Packer.toBlob(formattedDoc);
+    saveAs(blob, `formatted_${file.name}`);
   };
 
   const resetForm = () => {
-    if (downloadUrl) {
-      URL.revokeObjectURL(downloadUrl);
-      setDownloadUrl(null);
-    }
     setFile(null);
     setIsComplete(false);
     setIsProcessing(false);
     setValidationError(null);
+    setPreviewContent("");
+    setFormattedDoc(null);
+    setCustomFont("");
+
+    // Reset all custom options to default
+    setFontFamily(defaultFont);
+    setFontSize(defaultFontSize);
+    setLineSpacing(defaultLineSpacing);
+    setJustify(defaultJustify);
+    setPageNumbers(defaultPageNumbers);
+    setMode("standard");
+
+    // Force UploadBox to reset
+    setUploadKey(Date.now());
   };
 
   const isSubmitDisabled = !file || isProcessing || !!validationError;
@@ -126,176 +185,102 @@ const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
             </div>
             <h1 className="text-3xl font-bold text-primary mb-3">UniFormat</h1>
             <p className="text-muted-foreground">
-              Format your assignments with standard academic layout or custom rules.
+              Format your assignments with standard or custom academic rules.
             </p>
           </div>
 
-          {/* Upload Section */}
+          {/* Upload */}
           <div className="mb-8">
-            <Label className="text-base font-medium mb-3 block">Upload Your Document</Label>
-            <UploadBox 
+            <Label className="mb-3 block">Upload Your Document</Label>
+            <UploadBox
+              key={uploadKey} // force reset when key changes
               validationType="uniformal"
-              onFileSelect={setFile} 
+              onFileSelect={setFile}
               onValidationError={setValidationError}
             />
           </div>
 
           {/* Mode Selection */}
-          <div className="mb-8">
-            <Label className="text-base font-medium mb-3 block">Formatting Mode</Label>
-            <RadioGroup
-              value={mode}
-              onValueChange={(value) => setMode(value as "standard" | "custom")}
-              className="flex flex-col gap-3"
+          <div className="mb-6 flex gap-4">
+            <Button
+              variant={mode === "standard" ? "hero" : "outline"}
+              onClick={() => setMode("standard")}
             >
-              <label 
-                htmlFor="standard" 
-                className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
-                  mode === "standard" 
-                    ? "border-secondary bg-secondary/5" 
-                    : "border-border bg-background hover:border-secondary/50"
-                }`}
-              >
-                <RadioGroupItem value="standard" id="standard" className="mt-0.5" />
-                <div className="flex-1">
-                  <div className="font-medium text-foreground">Standard Academic Format</div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Times New Roman, 12pt, 1.5 spacing, 1-inch margins, page numbers, cover page
-                  </p>
-                </div>
-                {mode === "standard" && (
-                  <Check className="w-5 h-5 text-secondary mt-0.5" />
-                )}
-              </label>
-              <label 
-                htmlFor="custom" 
-                className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
-                  mode === "custom" 
-                    ? "border-secondary bg-secondary/5" 
-                    : "border-border bg-background hover:border-secondary/50"
-                }`}
-              >
-                <RadioGroupItem value="custom" id="custom" className="mt-0.5" />
-                <div className="flex-1">
-                  <div className="font-medium text-foreground">Custom Formatting</div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Define your own formatting rules for font, size, spacing, and more
-                  </p>
-                </div>
-                {mode === "custom" && (
-                  <Check className="w-5 h-5 text-secondary mt-0.5" />
-                )}
-              </label>
-            </RadioGroup>
+              Standard
+            </Button>
+            <Button
+              variant={mode === "custom" ? "hero" : "outline"}
+              onClick={() => setMode("custom")}
+            >
+              Custom
+            </Button>
           </div>
 
-          {/* Custom Mode Options */}
+          {/* Custom Options */}
           {mode === "custom" && (
-            <div className="space-y-6 mb-8 p-6 bg-muted/30 rounded-xl border border-border">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label className="mb-2 block">Font Family</Label>
-                  <Select value={fontFamily} onValueChange={setFontFamily}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fontFamilies.map((font) => (
-                        <SelectItem key={font} value={font}>
-                          {font}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="mb-2 block">Font Size</Label>
-                  <Select value={fontSize} onValueChange={setFontSize}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fontSizes.map((size) => (
-                        <SelectItem key={size} value={size}>
-                          {size}pt
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="mb-2 block">Line Spacing</Label>
-                  <Select value={lineSpacing} onValueChange={setLineSpacing}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {lineSpacings.map((spacing) => (
-                        <SelectItem key={spacing} value={spacing}>
-                          {spacing}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="mb-2 block">Margins</Label>
-                  <Select value={margin} onValueChange={setMargin}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {margins.map((m) => (
-                        <SelectItem key={m} value={m}>
-                          {m}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="mb-8 space-y-4 border p-4 rounded-md bg-muted/10">
+              <div>
+                <Label>Font Family</Label>
+                <select
+                  value={fontFamily}
+                  onChange={(e) => setFontFamily(e.target.value)}
+                  className="w-full p-2 border rounded-md mb-2"
+                >
+                  {commonFonts.map((font) => (
+                    <option key={font} value={font}>
+                      {font}
+                    </option>
+                  ))}
+                </select>
+                {fontFamily === "Other" && (
+                  <input
+                    type="text"
+                    value={customFont}
+                    onChange={(e) => setCustomFont(e.target.value)}
+                    placeholder="Enter font name"
+                    className="w-full p-2 border rounded-md"
+                  />
+                )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label className="mb-2 block">Header Text (optional)</Label>
-                  <Input 
-                    placeholder="e.g., Assignment Title" 
-                    value={headerText}
-                    onChange={(e) => setHeaderText(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label className="mb-2 block">Footer Text (optional)</Label>
-                  <Input 
-                    placeholder="e.g., Your Name" 
-                    value={footerText}
-                    onChange={(e) => setFooterText(e.target.value)}
-                  />
-                </div>
+              <div>
+                <Label>Font Size (pt)</Label>
+                <input
+                  type="number"
+                  value={parseInt(fontSize) / 2}
+                  onChange={(e) => setFontSize((parseInt(e.target.value) * 2).toString())}
+                  className="w-full p-2 border rounded-md"
+                />
               </div>
-
-              <div className="flex flex-wrap gap-6">
-                <div className="flex items-center gap-3">
-                  <Switch 
-                    id="page-numbering" 
-                    checked={pageNumbering}
-                    onCheckedChange={setPageNumbering}
-                  />
-                  <Label htmlFor="page-numbering" className="cursor-pointer">Page Numbering (bottom center)</Label>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Switch 
-                    id="cover-page" 
-                    checked={coverPage}
-                    onCheckedChange={setCoverPage}
-                  />
-                  <Label htmlFor="cover-page" className="cursor-pointer">Include Cover Page</Label>
-                </div>
+              <div>
+                <Label>Line Spacing (1=240, 1.5=360, 2=480)</Label>
+                <input
+                  type="number"
+                  value={parseInt(lineSpacing) / 240}
+                  onChange={(e) => setLineSpacing((parseInt(e.target.value) * 240).toString())}
+                  className="w-full p-2 border rounded-md"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={justify}
+                  onChange={(e) => setJustify(e.target.checked)}
+                />
+                <Label>Justify Text</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={pageNumbers}
+                  onChange={(e) => setPageNumbers(e.target.checked)}
+                />
+                <Label>Include Page Numbers</Label>
               </div>
             </div>
           )}
 
-          {/* Action Section */}
+          {/* ACTION */}
           <div className="flex flex-col items-center gap-4">
             {!isComplete ? (
               <Button
@@ -303,7 +288,6 @@ const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
                 size="lg"
                 onClick={handleFormat}
                 disabled={isSubmitDisabled}
-                className="min-w-[200px]"
               >
                 {isProcessing ? (
                   <>
@@ -315,21 +299,30 @@ const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
                 )}
               </Button>
             ) : (
-              <div className="text-center">
-                <div className="mb-4 inline-flex items-center gap-2 text-success font-medium">
-                  <CheckCircle className="w-5 h-5" />
-                  Formatting Complete!
+              <>
+                <div className="w-full">
+                  <Label className="mb-2 block">Preview</Label>
+                  <textarea
+                    value={previewContent}
+                    readOnly
+                    className="w-full h-72 p-3 border rounded-md text-sm bg-muted"
+                  />
                 </div>
-                <div className="flex gap-3">
-                  <Button variant="hero" size="lg" onClick={handleDownload}>
-                    <Download className="w-4 h-4" />
-                    Download File
-                  </Button>
-                  <Button variant="outline" size="lg" onClick={resetForm}>
-                    Format Another
-                  </Button>
-                </div>
-              </div>
+
+                <Button
+                  variant="hero"
+                  size="lg"
+                  className="mt-2"
+                  onClick={downloadFormattedFile}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Formatted File
+                </Button>
+
+                <Button variant="outline" onClick={resetForm} className="mt-2">
+                  Format Another
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -337,4 +330,3 @@ const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
     </Layout>
   );
 }
-
