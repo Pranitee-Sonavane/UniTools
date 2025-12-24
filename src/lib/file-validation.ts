@@ -1,4 +1,5 @@
-// File validation utilities with strict type checking
+// File validation utilities with safe DOCX + PDF handling
+// IMPORTANT: No UI changes, only validation reliability fixes
 
 export type FileValidationType = "uniformal" | "syllabus" | "pyq";
 
@@ -15,6 +16,8 @@ const validationConfigs: Record<FileValidationType, ValidationConfig> = {
     allowedMimeTypes: [
       "application/pdf",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      // Some browsers report empty or generic MIME for DOCX
+      "application/octet-stream",
     ],
     maxSizeMB: 10,
     displayFormats: "PDF, DOCX",
@@ -48,33 +51,37 @@ export function validateFile(
     return { isValid: false, error: "Invalid validation type." };
   }
 
-  // Check file extension
   const fileName = file.name.toLowerCase();
-  const hasValidExtension = config.allowedExtensions.some((ext) =>
-    fileName.endsWith(ext)
-  );
+  const fileExtension = "." + fileName.split(".").pop();
 
-  if (!hasValidExtension) {
+  // ✅ EXTENSION CHECK (PRIMARY – reliable)
+  if (!config.allowedExtensions.includes(fileExtension)) {
     return {
       isValid: false,
       error: `Invalid file format. Please upload a ${config.displayFormats} file.`,
     };
   }
 
-  // Check MIME type
-  if (!config.allowedMimeTypes.includes(file.type)) {
-    return {
-      isValid: false,
-      error: `Invalid file type. Please upload a ${config.displayFormats} file.`,
-    };
+  // ✅ MIME CHECK (SECONDARY – tolerant)
+  if (
+    file.type &&
+    !config.allowedMimeTypes.includes(file.type)
+  ) {
+    // Allow DOCX even if MIME is missing or generic
+    if (fileExtension !== ".docx") {
+      return {
+        isValid: false,
+        error: `Invalid file type. Please upload a ${config.displayFormats} file.`,
+      };
+    }
   }
 
-  // Check file size
+  // ✅ FILE SIZE CHECK
   const fileSizeMB = file.size / (1024 * 1024);
   if (fileSizeMB > config.maxSizeMB) {
     return {
       isValid: false,
-      error: `File size exceeds ${config.maxSizeMB}MB limit. Please upload a smaller file.`,
+      error: `File size exceeds ${config.maxSizeMB}MB limit.`,
     };
   }
 
@@ -90,10 +97,14 @@ export function getAcceptedFormats(type: FileValidationType): string[] {
 
 export function getAcceptAttribute(type: FileValidationType): string {
   const config = validationConfigs[type];
-  return config ? config.allowedExtensions.join(",") : ".pdf";
+  return config
+    ? config.allowedExtensions.join(",")
+    : ".pdf";
 }
 
 export function getMaxSize(type: FileValidationType): string {
   const config = validationConfigs[type];
-  return config ? `${config.maxSizeMB}MB` : "10MB";
+  return config
+    ? `${config.maxSizeMB}MB`
+    : "10MB";
 }
