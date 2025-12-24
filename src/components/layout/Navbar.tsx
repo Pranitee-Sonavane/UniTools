@@ -1,8 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, Menu, X, Moon, Sun } from "lucide-react";
+import { GraduationCap, Menu, X, Moon, Sun, LogIn, LogOut } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "@/hooks/use-theme";
+import { useAuth } from "@/contexts/AuthContext";
+import { AuthModal } from "@/components/auth/AuthModal";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -16,8 +18,10 @@ const navLinks = [
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -42,6 +46,16 @@ export function Navbar() {
           ))}
           
           <div className="flex items-center gap-1 ml-2 pl-2 border-l border-border">
+            <div className="hidden lg:block mr-2 text-xs text-muted-foreground text-right">
+              {user ? (
+                <div>
+                  <div className="font-medium">Logged in as:</div>
+                  <div className="max-w-[150px] truncate" title={user.email || ""}>{user.email}</div>
+                </div>
+              ) : (
+                <div className="font-medium">Not Logged In</div>
+              )}
+            </div>
             <Button
               variant="ghost"
               size="icon"
@@ -54,6 +68,25 @@ export function Navbar() {
                 <Sun className="h-5 w-5" />
               )}
             </Button>
+            {user ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => logout()}
+                aria-label="Logout"
+              >
+                <LogOut className="h-5 w-5" />
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsAuthModalOpen(true)}
+                aria-label="Login"
+              >
+                <LogIn className="h-5 w-5" />
+              </Button>
+            )}
           </div>
         </div>
 
@@ -71,6 +104,25 @@ export function Navbar() {
               <Sun className="h-5 w-5" />
             )}
           </Button>
+          {user ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => logout()}
+              aria-label="Logout"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsAuthModalOpen(true)}
+              aria-label="Login"
+            >
+              <LogIn className="h-5 w-5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -80,6 +132,8 @@ export function Navbar() {
           </Button>
         </div>
       </nav>
+
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
 
       {/* Mobile Navigation */}
       {isOpen && (

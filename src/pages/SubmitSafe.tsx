@@ -160,6 +160,13 @@ export default function SubmitSafe() {
               <p className="text-sm text-muted-foreground">
                 {passCount} passed • {warningCount} warnings • {failCount} failed
               </p>
+              
+              <div className="mt-4">
+                <Button variant="outline" size="sm" onClick={handleDownloadReport}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Report & Clear
+                </Button>
+              </div>
             </div>
           )}
         </div>
