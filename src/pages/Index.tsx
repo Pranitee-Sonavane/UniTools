@@ -192,11 +192,11 @@ export default function Index() {
               Ready to Submit with Confidence?
             </h2>
             <p className="text-muted-foreground mb-8">
-              Start formatting your assignment now. No login required.
+              Start formatting your assignment now.
             </p>
             <Link to="/uniformat">
               <Button variant="hero" size="lg">
-                Get Started Free
+                Get Started
               </Button>
             </Link>
           </div>

@@ -26,6 +26,7 @@ export default function Syllabus() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [showChecklist, setShowChecklist] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
   const { toast } = useToast();
 
@@ -83,10 +84,36 @@ export default function Syllabus() {
   const isSubmitDisabled = !file || isProcessing || !!validationError;
 
   const resetForm = () => {
+    if (downloadUrl) {
+      URL.revokeObjectURL(downloadUrl);
+      setDownloadUrl(null);
+    }
     setFile(null);
     setShowChecklist(false);
     setUnits([]);
     setValidationError(null);
+  };
+
+  const handleDownload = () => {
+    const exportData = units.map((unit) => ({
+      unit: unit.name,
+      topics: unit.topics.map((t) => ({
+        name: t.name,
+        completed: t.completed,
+      })),
+    }));
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const baseName = file ? file.name.replace(/\.[^/.]+$/, "") : "syllabus";
+    link.href = url;
+    link.download = `syllabus_checklist_${baseName}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -192,7 +219,7 @@ export default function Syllabus() {
 
                   {/* Export Button */}
                   <div className="text-center">
-                    <Button variant="outline" size="lg">
+                    <Button variant="outline" size="lg" onClick={handleDownload}>
                       <Download className="w-4 h-4" />
                       Export Checklist
                     </Button>

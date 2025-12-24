@@ -64,6 +64,10 @@ export default function PYQ() {
   const isSubmitDisabled = !file || isProcessing || !!validationError;
 
   const resetForm = () => {
+    if (downloadUrl) {
+      URL.revokeObjectURL(downloadUrl);
+      setDownloadUrl(null);
+    }
     setFile(null);
     setShowResults(false);
     setTopics([]);
@@ -178,7 +182,7 @@ export default function PYQ() {
 
                   {/* Download Topic-wise */}
                   <div className="mt-8 text-center">
-                    <Button variant="hero" size="lg">
+                    <Button variant="hero" size="lg" onClick={handleDownload}>
                       <Download className="w-4 h-4" />
                       Download Topic-wise PDFs
                     </Button>
@@ -204,3 +208,4 @@ export default function PYQ() {
     </Layout>
   );
 }
+

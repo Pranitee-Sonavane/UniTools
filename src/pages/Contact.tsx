@@ -177,8 +177,8 @@ export default function Contact() {
           <div className="mt-10 text-center pt-8 border-t border-border">
             <p className="text-sm text-muted-foreground">
               Or email us directly at{" "}
-              <a href="mailto:hello@unitools.edu" className="text-secondary hover:underline">
-                hello@unitools.edu
+              <a href="mailto:unitools2922@gmail.com" className="text-secondary hover:underline">
+                unitools2922@gmail.com
               </a>
             </p>
           </div>

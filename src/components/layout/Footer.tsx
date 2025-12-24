@@ -63,10 +63,10 @@ export function Footer() {
               ))}
               <li>
                 <a
-                  href="mailto:hello@unitools.edu"
+                  href="mailto:unitools2922@gmail.com"
                   className="text-sm text-muted-foreground hover:text-secondary transition-colors"
                 >
-                  hello@unitools.edu
+                  unitools2922@gmail.com
                 </a>
               </li>
             </ul>

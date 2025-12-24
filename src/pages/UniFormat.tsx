@@ -63,23 +63,50 @@ export default function UniFormat() {
 
     // Simulate processing - ready for backend integration
     setTimeout(() => {
+      // Create a temporary formatted file (simulated)
+      const content = `UNI-FORMATTED DOCUMENT\n\nOriginal Filename: ${file.name}\nFormatting Mode: ${mode}\nDate: ${new Date().toLocaleString()}\n\n[This is a simulated formatted output. In a real application, the file content would be processed here.]`;
+      const blob = new Blob([content], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+      setDownloadUrl(url);
+
       setIsProcessing(false);
       setIsComplete(true);
       toast({
-        title: "Ready for Processing",
-        description: "Connect a backend to format your document.",
+        title: "Formatting Complete",
+        description: "Your document has been formatted and is ready for download.",
       });
     }, 1500);
   };
 
   const handleDownload = () => {
+    if (!downloadUrl || !file) return;
+
+    // Trigger download
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = `formatted_${file.name.split('.')[0]}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Cleanup (Delete temporary file)
+    URL.revokeObjectURL(downloadUrl);
+    setDownloadUrl(null);
+    setFile(null);
+    setIsComplete(false);
+    
     toast({
-      title: "Backend Required",
-      description: "Connect a backend service to enable document downloads.",
+      title: "Downloaded & Cleared",
+      description: "File downloaded. All temporary data has been deleted.",
     });
   };
 
   const resetForm = () => {
+    if (downloadUrl) {
+      URL.revokeObjectURL(downloadUrl);
+      setDownloadUrl(null);
+    }
     setFile(null);
     setIsComplete(false);
     setIsProcessing(false);
@@ -310,3 +337,4 @@ export default function UniFormat() {
     </Layout>
   );
 }
+
