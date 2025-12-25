@@ -1,8 +1,12 @@
+import syllabusRoutes from "./routes/syllabus.routes.js";
+
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const JSZip = require('jszip');
 const mammoth = require('mammoth');
+
+app.use("/api", syllabusRoutes);
 
 const app = express();
 app.use(cors());

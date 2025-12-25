@@ -19,6 +19,8 @@
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^2.4.5",
     "pdfjs-dist": "^5.4.449",
+    "pdfkit": "^0.17.2",
+    "tesseract.js": "^7.0.0",
     "xmldom": "^0.6.0"
   }
 }
