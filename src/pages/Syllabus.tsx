@@ -26,68 +26,90 @@ export default function Syllabus() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [showChecklist, setShowChecklist] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
   const { toast } = useToast();
 
-  const handleExtract = () => {
-    if (!file) return;
+  const handleExtract = async () => {
+  if (!file) return;
 
-    if (validationError) {
-      toast({
-        title: "Invalid File",
-        description: validationError,
-        variant: "destructive",
-      });
-      return;
+  if (validationError) {
+    toast({
+      title: "Invalid File",
+      description: validationError,
+      variant: "destructive",
+    });
+    return;
+  }
+
+  setIsProcessing(true);
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("http://localhost:5000/api/syllabus/extract", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      if (res.status === 413) {
+        throw new Error("File too large. Please upload syllabus of only one subject (max 2 MB).");
+      }
+
+      const text = await res.text();
+      throw new Error(text || "Extraction failed");
     }
 
-    setIsProcessing(true);
+    const data = await res.json();
 
-    // Simulate processing - ready for backend integration
-    setTimeout(() => {
-      setIsProcessing(false);
-      setShowChecklist(true);
-      toast({
-        title: "Ready for Processing",
-        description: "Connect a backend to extract syllabus topics.",
-      });
-    }, 1500);
-  };
+    const formattedUnits: Unit[] = data.syllabus.map(
+      (unit: any, unitIndex: number) => ({
+        id: `unit-${unitIndex}`,
+        name: unit.unit,
+        isExpanded: true,
+        topics: unit.topics.map((topic: any, topicIndex: number) => ({
+          id: `topic-${unitIndex}-${topicIndex}`,
+          name: topic.name,
+          completed: false,
+        })),
+      })
+    );
+
+    setUnits(formattedUnits);
+    setShowChecklist(true);
+  } catch (err: any) {
+    console.error(err);
+    toast({
+      title: "Extraction Failed",
+      description: err.message || "Unable to extract syllabus.",
+      variant: "destructive",
+    });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
+
 
   const toggleUnit = (unitId: string) => {
-    setUnits(units.map(unit => 
-      unit.id === unitId ? { ...unit, isExpanded: !unit.isExpanded } : unit
-    ));
+    setUnits(units.map(unit => unit.id === unitId ? { ...unit, isExpanded: !unit.isExpanded } : unit));
   };
 
   const toggleTopic = (unitId: string, topicId: string) => {
-    setUnits(units.map(unit => 
-      unit.id === unitId 
-        ? {
-            ...unit,
-            topics: unit.topics.map(topic =>
-              topic.id === topicId ? { ...topic, completed: !topic.completed } : topic
-            ),
-          }
-        : unit
+    setUnits(units.map(unit => unit.id === unitId
+      ? { ...unit, topics: unit.topics.map(topic => topic.id === topicId ? { ...topic, completed: !topic.completed } : topic) }
+      : unit
     ));
   };
 
   const totalTopics = units.reduce((sum, unit) => sum + unit.topics.length, 0);
-  const completedTopics = units.reduce(
-    (sum, unit) => sum + unit.topics.filter((t) => t.completed).length,
-    0
-  );
+  const completedTopics = units.reduce((sum, unit) => sum + unit.topics.filter(t => t.completed).length, 0);
   const progressPercent = totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0;
 
   const isSubmitDisabled = !file || isProcessing || !!validationError;
 
   const resetForm = () => {
-    if (downloadUrl) {
-      URL.revokeObjectURL(downloadUrl);
-      setDownloadUrl(null);
-    }
     setFile(null);
     setShowChecklist(false);
     setUnits([]);
@@ -95,26 +117,30 @@ export default function Syllabus() {
   };
 
   const handleDownload = () => {
-    const exportData = units.map((unit) => ({
-      unit: unit.name,
-      topics: unit.topics.map((t) => ({
-        name: t.name,
-        completed: t.completed,
-      })),
-    }));
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-      type: "application/json",
+  let content = "SYLLABUS CHECKLIST\n\n";
+
+  units.forEach((unit, uIndex) => {
+    content += `${unit.name}\n`;
+    content += "-".repeat(unit.name.length) + "\n";
+
+    unit.topics.forEach(topic => {
+      content += `[ ] ${topic.name}\n`;
     });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    const baseName = file ? file.name.replace(/\.[^/.]+$/, "") : "syllabus";
-    link.href = url;
-    link.download = `syllabus_checklist_${baseName}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+
+    content += "\n";
+  });
+
+  const blob = new Blob([content], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "syllabus_checklist.txt";
+  link.click();
+
+  URL.revokeObjectURL(url);
+};
+
 
   return (
     <Layout>
@@ -127,13 +153,12 @@ export default function Syllabus() {
             </div>
             <h1 className="text-3xl font-bold text-primary mb-3">Syllabus Checklist</h1>
             <p className="text-muted-foreground">
-              Convert long syllabus PDFs into trackable checklists for smart study planning.
+              Convert syllabus PDFs into trackable checklists for smart study planning.
             </p>
           </div>
 
           {!showChecklist ? (
             <>
-              {/* Upload Section */}
               <div className="mb-8">
                 <UploadBox 
                   validationType="syllabus"
@@ -142,7 +167,6 @@ export default function Syllabus() {
                 />
               </div>
 
-              {/* Action Button */}
               <div className="text-center">
                 <Button
                   variant="hero"
@@ -156,9 +180,7 @@ export default function Syllabus() {
                       <Loader2 className="w-4 h-4 animate-spin" />
                       Extracting...
                     </>
-                  ) : (
-                    "Extract Syllabus"
-                  )}
+                  ) : "Extract Syllabus"}
                 </Button>
               </div>
             </>
@@ -182,7 +204,7 @@ export default function Syllabus() {
 
                   {/* Checklist */}
                   <div className="space-y-4 mb-8">
-                    {units.map((unit) => (
+                    {units.map(unit => (
                       <div key={unit.id} className="bg-card rounded-xl border border-border overflow-hidden">
                         <button
                           className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
@@ -197,11 +219,8 @@ export default function Syllabus() {
                         </button>
                         {unit.isExpanded && (
                           <div className="border-t border-border">
-                            {unit.topics.map((topic) => (
-                              <label
-                                key={topic.id}
-                                className="flex items-center gap-3 p-4 hover:bg-muted/30 cursor-pointer transition-colors"
-                              >
+                            {unit.topics.map(topic => (
+                              <label key={topic.id} className="flex items-center gap-3 p-4 hover:bg-muted/30 cursor-pointer transition-colors">
                                 <Checkbox
                                   checked={topic.completed}
                                   onCheckedChange={() => toggleTopic(unit.id, topic.id)}
@@ -217,21 +236,24 @@ export default function Syllabus() {
                     ))}
                   </div>
 
-                  {/* Export Button */}
                   <div className="text-center">
                     <Button variant="outline" size="lg" onClick={handleDownload}>
                       <Download className="w-4 h-4" />
                       Export Checklist
                     </Button>
                   </div>
+                  <div className="mt-4 text-center">
+                    <Button variant="secondary" onClick={resetForm}>
+                      Upload Another Syllabus
+                    </Button>
+                  </div>
                 </>
               ) : (
-                /* Empty State - Ready for backend connection */
                 <div className="text-center p-8 bg-card rounded-xl border border-border">
                   <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-foreground mb-2">File Selected</h3>
                   <p className="text-muted-foreground mb-6">
-                    Your syllabus file is ready. Connect a backend service to extract and display topics from the PDF.
+                    Your syllabus file is ready. Connect a backend service to extract and display topics from the PDF or image.
                   </p>
                   <Button variant="outline" onClick={resetForm}>
                     Select Another File

@@ -22,12 +22,14 @@ const validationConfigs: Record<FileValidationType, ValidationConfig> = {
     maxSizeMB: 10,
     displayFormats: "PDF, DOCX",
   },
+
   syllabus: {
     allowedExtensions: [".pdf"],
     allowedMimeTypes: ["application/pdf"],
-    maxSizeMB: 10,
+    maxSizeMB: 2, // ✅ CHANGED FROM 10MB TO 2MB
     displayFormats: "PDF",
   },
+
   pyq: {
     allowedExtensions: [".pdf"],
     allowedMimeTypes: ["application/pdf"],
@@ -63,10 +65,7 @@ export function validateFile(
   }
 
   // ✅ MIME CHECK (SECONDARY – tolerant)
-  if (
-    file.type &&
-    !config.allowedMimeTypes.includes(file.type)
-  ) {
+  if (file.type && !config.allowedMimeTypes.includes(file.type)) {
     // Allow DOCX even if MIME is missing or generic
     if (fileExtension !== ".docx") {
       return {
